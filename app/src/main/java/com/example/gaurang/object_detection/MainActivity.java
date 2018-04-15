@@ -1,20 +1,40 @@
 package com.example.gaurang.object_detection;
-
 import android.Manifest;
+
+import com.vansuita.pickimage.bean.PickResult;
+import com.vansuita.pickimage.bundle.PickSetup;
+import com.vansuita.pickimage.dialog.PickImageDialog;
+import com.vansuita.pickimage.enums.EPickType;
+import com.vansuita.pickimage.listeners.IPickCancel;
+import com.vansuita.pickimage.listeners.IPickResult;
+import com.weiwangcn.betterspinner.library.material.MaterialBetterSpinner;
+
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Color;
 import android.os.AsyncTask;
+import android.os.Handler;
 import android.provider.MediaStore;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.DefaultItemAnimator;
+import android.support.v7.widget.LinearLayoutCompat;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.ProgressBar;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -29,77 +49,203 @@ import com.google.api.services.vision.v1.Vision;
 import com.google.api.services.vision.v1.VisionRequest;
 import com.google.api.services.vision.v1.VisionRequestInitializer;
 import com.google.api.services.vision.v1.model.AnnotateImageRequest;
+import com.google.api.services.vision.v1.model.AnnotateImageResponse;
 import com.google.api.services.vision.v1.model.BatchAnnotateImagesRequest;
 import com.google.api.services.vision.v1.model.BatchAnnotateImagesResponse;
+import com.google.api.services.vision.v1.model.ColorInfo;
+import com.google.api.services.vision.v1.model.DominantColorsAnnotation;
 import com.google.api.services.vision.v1.model.EntityAnnotation;
 import com.google.api.services.vision.v1.model.Feature;
 import com.google.api.services.vision.v1.model.Image;
+import com.google.api.services.vision.v1.model.ImageProperties;
+import com.google.api.services.vision.v1.model.SafeSearchAnnotation;
 
 import org.apache.commons.io.output.ByteArrayOutputStream;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements IPickResult {
 
     private static final int CAMERA_REQUEST_CODE = 1;
     private static final String TAG = "d";
     private Bitmap bitmap;
+
     Image image;
+    Button takePicture;
+    ProgressBar imageUploadProgress;
+
     private ImageView imageView;
     private static final String ANDROID_CERT_HEADER = "X-Android-Cert";
     private static final String ANDROID_PACKAGE_HEADER = "X-Android-Packag";
     Feature feature;
-    private TextView mImageDetails;
+    private TextView visionAPIData;
+    MaterialBetterSpinner spinnerVisionAPI;
+    private String[] visionAPI = new String[]{"LANDMARK_DETECTION", "LOGO_DETECTION", "SAFE_SEARCH_DETECTION", "IMAGE_PROPERTIES", "LABEL_DETECTION"};
+
+    private String api = visionAPI[0];
+    public static RecyclerView.Adapter adapter;
+    public RecyclerView.LayoutManager layoutManager;
+    public static RecyclerView recyclerView;
+    public static ArrayList<DataModel> data;
+    DataModel d1, d2, d3, d4, d5;
+    PickImageDialog dialog;
+    static View.OnClickListener myOnClickListener;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        if (checkAndRequestPermissions()) {
-            //If you have already permitted the permission
-        }
-        else {
-            finish();
-        }
-        imageView=findViewById(R.id.imageView);
-        mImageDetails=findViewById(R.id.mDetails);
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult(intent, CAMERA_REQUEST_CODE);
-       /* Vision.Builder visionBuilder = new Vision.Builder(
-                new NetHttpTransport(),
-                new AndroidJsonFactory(),
-                null);
-        visionBuilder.setVisionRequestInitializer(
-                new VisionRequestInitializer("AIzaSyBYa6Z2CIhPVRGZqupSG_Ire_r8-gLL9hE"));
-        Vision vision = visionBuilder.build();*/
-       /* feature = new Feature();
-        feature.setType("LANDMARK_DETECTION");
-        feature.setMaxResults(10);*/
-   //     ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.READ_EXTERNAL_STORAGE,Manifest.permission.ACCESS_FINE_LOCATION,Manifest.permission.CAMERA}, 1);
-       // ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, 2);
-        //ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, 3);
+        imageView = findViewById(R.id.imageView);
+        takePicture = (Button) findViewById(R.id.takePicture);
 
-
-        Button b = (Button) findViewById(R.id.camara);
-        b.setOnClickListener(new View.OnClickListener() {
+        myOnClickListener = new MyOnClickListener(this);
+        recyclerView = findViewById(R.id.my_recycler_view);
+        recyclerView.setHasFixedSize(true);
+        layoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(layoutManager);
+        recyclerView.setItemAnimator(new DefaultItemAnimator());
+        data = new ArrayList<DataModel>();
+        takePicture.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-                startActivityForResult(intent, CAMERA_REQUEST_CODE);
+                PickSetup setup = new PickSetup()
+                        .setTitle("Choose")
+                        .setTitleColor(Color.WHITE)
+                        .setBackgroundColor(Color.GRAY)
+                        .setProgressTextColor(Color.WHITE)
+                        .setCancelText("CANCEL")
+                        .setCancelTextColor(Color.WHITE)
+                        .setFlip(true)
+                        .setMaxSize(500)
+                        .setPickTypes(EPickType.GALLERY, EPickType.CAMERA)
+                        .setCameraButtonText("Camera")
+                        .setGalleryButtonText("Gallery")
+                        .setIconGravity(Gravity.LEFT)
+                        .setButtonOrientation(LinearLayoutCompat.VERTICAL)
+                        .setSystemDialog(false);
+
+                dialog = PickImageDialog.build(setup).show(MainActivity.this);
+                dialog.setOnPickCancel(new IPickCancel() {
+                    @Override
+                    public void onCancelClick() {
+                        dialog.dismiss();
+                    }
+                });
             }
         });
+
+
+        feature = new Feature();
+        feature.setType(visionAPI[0]);
+        feature.setMaxResults(10);
+
+
+        d1 = new DataModel("gaurang", "sadqwwr", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
+        d2 = new DataModel("gaurang", "sadqwwr", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
+
+        data.add(d1);
+        data.add(d2);
+      //  data.add(d3);
+        adapter = new CustomAdapter(data);
+        recyclerView.setAdapter(adapter);
+
 
     }
 
     @Override
-    protected void onStart() {
-        super.onStart();
-        Toast.makeText(getApplicationContext(),"sd",Toast.LENGTH_SHORT).show();
+    public void onPickResult(PickResult r) {
+        if (r.getError() == null) {
+            bitmap = r.getBitmap();
+            imageView.setImageBitmap(bitmap);
+            image = getImageEncodeImage(bitmap);
 
+            //or     call here cloud visoin
+
+        }
     }
+
+
+    @NonNull
+    private Image getImageEncodeImage(Bitmap bitmap) {
+        Image base64EncodedImage = new Image();
+        // Convert the bitmap to a JPEG
+        // Just in case it's a format that Android understands but Cloud Vision
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
+        byte[] imageBytes = byteArrayOutputStream.toByteArray();
+
+        // Base64 encode the JPEG
+        base64EncodedImage.encodeContent(imageBytes);
+        return base64EncodedImage;
+    }
+
+    private String convertResponseToString(BatchAnnotateImagesResponse response) {
+
+        AnnotateImageResponse imageResponses = response.getResponses().get(0);
+
+        List<EntityAnnotation> entityAnnotations;
+
+        String message = "";
+        switch (api) {
+            case "LANDMARK_DETECTION":
+                entityAnnotations = imageResponses.getLandmarkAnnotations();
+                message = formatAnnotation(entityAnnotations);
+                break;
+            case "LOGO_DETECTION":
+                entityAnnotations = imageResponses.getLogoAnnotations();
+                message = formatAnnotation(entityAnnotations);
+                break;
+            case "SAFE_SEARCH_DETECTION":
+                SafeSearchAnnotation annotation = imageResponses.getSafeSearchAnnotation();
+                message = getImageAnnotation(annotation);
+                break;
+            case "IMAGE_PROPERTIES":
+                ImageProperties imageProperties = imageResponses.getImagePropertiesAnnotation();
+                message = getImageProperty(imageProperties);
+                break;
+            case "LABEL_DETECTION":
+                entityAnnotations = imageResponses.getLabelAnnotations();
+                message = formatAnnotation(entityAnnotations);
+                break;
+        }
+        return message;
+    }
+
+    private String getImageAnnotation(SafeSearchAnnotation annotation) {
+        return String.format("adult: %s\nmedical: %s\nspoofed: %s\nviolence: %s\n",
+                annotation.getAdult(),
+                annotation.getMedical(),
+                annotation.getSpoof(),
+                annotation.getViolence());
+    }
+
+    private String getImageProperty(ImageProperties imageProperties) {
+        String message = "";
+        DominantColorsAnnotation colors = imageProperties.getDominantColors();
+        for (ColorInfo color : colors.getColors()) {
+            message = message + "" + color.getPixelFraction() + " - " + color.getColor().getRed() + " - " + color.getColor().getGreen() + " - " + color.getColor().getBlue();
+            message = message + "\n";
+        }
+        return message;
+    }
+
+    private String formatAnnotation(List<EntityAnnotation> entityAnnotation) {
+        String message = "";
+
+        if (entityAnnotation != null) {
+            for (EntityAnnotation entity : entityAnnotation) {
+                message = message + "    " + entity.getDescription() + " " + entity.getScore();
+                message += "\n";
+            }
+        } else {
+            message = "Nothing Found";
+        }
+        return message;
+    }
+
+
     private boolean checkAndRequestPermissions() {
         int permissionCAMERA = ContextCompat.checkSelfPermission(this,
                 Manifest.permission.CAMERA);
@@ -134,147 +280,87 @@ public class MainActivity extends AppCompatActivity {
                     listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), 1);
             return false;
         }
-
+        Toast.makeText(getApplicationContext(), "permission granted", Toast.LENGTH_SHORT).show();
         return true;
     }
-    public void takePictureFromCamera() {
-        Intent intent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
-        startActivityForResult(intent, CAMERA_REQUEST_CODE);
-    }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode,
-                                    Intent data) {
+    private void callCloudVision(final Bitmap bitmap, final Feature feature) {
+        visionAPIData.setText("Loading..");
+        final List<Feature> featureList = new ArrayList<>();
+        featureList.add(feature);
 
+        final List<AnnotateImageRequest> annotateImageRequests = new ArrayList<>();
 
-        if (requestCode == CAMERA_REQUEST_CODE && resultCode == RESULT_OK) {
-            bitmap = (Bitmap) data.getExtras().get("data");
-            imageView.setImageBitmap(bitmap);
-            image=getImageEncodeImage(bitmap);
-            try {
-                callCloudVision(bitmap,image);
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-    }
-    @NonNull
-    private Image getImageEncodeImage(Bitmap bitmap) {
-        Image base64EncodedImage = new Image();
-        // Convert the bitmap to a JPEG
-        // Just in case it's a format that Android understands but Cloud Vision
-        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream);
-        byte[] imageBytes = byteArrayOutputStream.toByteArray();
-
-        // Base64 encode the JPEG
-        base64EncodedImage.encodeContent(imageBytes);
-        return base64EncodedImage;
-    }
-
-    private String convertResponseToString(BatchAnnotateImagesResponse response) {
-        String message = "I found these things:\n\n";
-
-        List<EntityAnnotation> labels = response.getResponses().get(0).getLabelAnnotations();
-        if (labels != null) {
-            for (EntityAnnotation label : labels) {
-                message += String.format(Locale.US, "%.3f: %s", label.getScore(), label.getDescription());
-                message += "\n";
-            }
-        } else {
-            message += "nothing";
-        }
-
-        return message;
-    }
-  /*  @Override
-    public void onRequestPermissionsResult(int requestCode,
-                                           String permissions[], int[] grantResults) {
-        switch (requestCode) {
-            case 1: {
-
-if(checkAndRequestPermissions())
-{            startActivity(new Intent(MainActivity.this,MainActivity.class));
-
-} else {
-                    Toast.makeText(MainActivity.this, "Permission denied to use location", Toast.LENGTH_SHORT).show();
-                    finish();
-                }
-                return;
-            }
-
-            }
-        }*/     // still in progress
+        AnnotateImageRequest annotateImageReq = new AnnotateImageRequest();
+        annotateImageReq.setFeatures(featureList);
+        annotateImageReq.setImage(getImageEncodeImage(bitmap));
+        annotateImageRequests.add(annotateImageReq);
 
 
-    private void callCloudVision(final Bitmap bitmap,final Image image) throws IOException {
-       mImageDetails.setText("Loading.....");
-
-        // Do the real work in an async task, because we need to use the network anyway
         new AsyncTask<Object, Void, String>() {
             @Override
             protected String doInBackground(Object... params) {
                 try {
-                    HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();// for contacting the google server
-                    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();//for json to java object
 
-                    VisionRequestInitializer requestInitializer =
-                            new VisionRequestInitializer("AIzaSyBYa6Z2CIhPVRGZqupSG_Ire_r8-gLL9hE") {// AIzaSyBYa6Z2CIhPVRGZqupSG_Ire_r8-gLL9hE
-                                @Override
-                                protected void initializeVisionRequest(VisionRequest<?> visionRequest)
-                                        throws IOException {
-                                    super.initializeVisionRequest(visionRequest);
+                    HttpTransport httpTransport = AndroidHttp.newCompatibleTransport();
+                    JsonFactory jsonFactory = GsonFactory.getDefaultInstance();
 
-                                    String packageName = getPackageName();
-                                    visionRequest.getRequestHeaders().set(ANDROID_PACKAGE_HEADER, packageName);
-
-                                    String sig = PackageManagerUtils.getSignature(getPackageManager(), packageName);
-
-                                    visionRequest.getRequestHeaders().set(ANDROID_CERT_HEADER, sig);
-                                }
-                            };
+                    VisionRequestInitializer requestInitializer = new VisionRequestInitializer("AIzaSyDx-atj9moCFMdJUe2x-93zHNXLlwAUtiE-MQo");
 
                     Vision.Builder builder = new Vision.Builder(httpTransport, jsonFactory, null);
                     builder.setVisionRequestInitializer(requestInitializer);
 
                     Vision vision = builder.build();
 
-                    BatchAnnotateImagesRequest batchAnnotateImagesRequest =
-                            new BatchAnnotateImagesRequest();
-                    batchAnnotateImagesRequest.setRequests(new ArrayList<AnnotateImageRequest>() {{
-                        AnnotateImageRequest annotateImageRequest = new AnnotateImageRequest();
-                        annotateImageRequest.setImage(image);
+                    BatchAnnotateImagesRequest batchAnnotateImagesRequest = new BatchAnnotateImagesRequest();
+                    batchAnnotateImagesRequest.setRequests(annotateImageRequests);
 
-                        // add the features we want
-                        annotateImageRequest.setFeatures(new ArrayList<Feature>() {{
-                            Feature labelDetection = new Feature();
-                            labelDetection.setType("LABEL_DETECTION");
-                            labelDetection.setMaxResults(10);
-                            add(labelDetection);
-                        }});
-
-                        // Add the list of one thing to the request
-                        add(annotateImageRequest);
-                    }});
-
-                    Vision.Images.Annotate annotateRequest =
-                            vision.images().annotate(batchAnnotateImagesRequest);
-                    // Due to a bug: requests to Vision API containing large images fail when GZipped.
+                    Vision.Images.Annotate annotateRequest = vision.images().annotate(batchAnnotateImagesRequest);
                     annotateRequest.setDisableGZipContent(true);
-
                     BatchAnnotateImagesResponse response = annotateRequest.execute();
                     return convertResponseToString(response);
-
                 } catch (GoogleJsonResponseException e) {
+                    Log.d(TAG, "failed to make API request because " + e.getContent());
                 } catch (IOException e) {
-                            e.getMessage();
+                    Log.d(TAG, "failed to make API request because of other IOException " + e.getMessage());
                 }
                 return "Cloud Vision API request failed. Check logs for details.";
             }
 
             protected void onPostExecute(String result) {
-                mImageDetails.setText(result);
+                visionAPIData.setText(result);
+                //  imageUploadProgress.setVisibility(View.INVISIBLE);
             }
         }.execute();
+    }
+
+    public static class MyOnClickListener implements View.OnClickListener {
+
+        private final Context context;
+
+        public MyOnClickListener(Context context) {
+            this.context = context;
+
+        }
+
+        @Override
+        public void onClick(View v) {
+            Toast.makeText(context, "onclick", Toast.LENGTH_SHORT).show();
+
+            Coll_Expand(v);
+        }
+
+        private void Coll_Expand(View v) {
+            int selectedItemPosition = recyclerView.getChildPosition(v);
+            RecyclerView.ViewHolder viewHolder
+                    = recyclerView.findViewHolderForPosition(selectedItemPosition);
+            TextView textViewName
+                    = (TextView) viewHolder.itemView.findViewById(R.id.card_view_show_more);
+            if (textViewName.isShown()) {
+                textViewName.setVisibility(View.GONE);
+            } else {
+                textViewName.setVisibility(View.VISIBLE);
+            }
+        }
     }
 }

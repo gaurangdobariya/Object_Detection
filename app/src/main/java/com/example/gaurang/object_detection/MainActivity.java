@@ -142,8 +142,8 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
         feature.setMaxResults(10);
 
 
-        d1 = new DataModel("gaurang", "sadqwwr", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
-        d2 = new DataModel("gaurang", "sadqwwr", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
+        d1 = new DataModel("LABEL_DETECTION", "Show More▼", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
+        d2 = new DataModel("LANDMARK_DETECTION", "Show More▼", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
 
         data.add(d1);
         data.add(d2);
@@ -246,44 +246,6 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
     }
 
 
-    private boolean checkAndRequestPermissions() {
-        int permissionCAMERA = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.CAMERA);
-
-
-        int storagePermission = ContextCompat.checkSelfPermission(this,
-
-
-                Manifest.permission.READ_EXTERNAL_STORAGE);
-
-        int gpsPermission = ContextCompat.checkSelfPermission(this,
-
-
-                Manifest.permission.ACCESS_FINE_LOCATION);
-
-
-        List<String> listPermissionsNeeded = new ArrayList<>();
-        if (storagePermission != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
-        }
-        if (permissionCAMERA != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.CAMERA);
-        }
-        if (gpsPermission != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        }
-
-        if (!listPermissionsNeeded.isEmpty()) {
-            ActivityCompat.requestPermissions(this,
-
-
-                    listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), 1);
-            return false;
-        }
-        Toast.makeText(getApplicationContext(), "permission granted", Toast.LENGTH_SHORT).show();
-        return true;
-    }
-
     private void callCloudVision(final Bitmap bitmap, final Feature feature) {
         visionAPIData.setText("Loading..");
         final List<Feature> featureList = new ArrayList<>();
@@ -330,8 +292,38 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
             protected void onPostExecute(String result) {
                 visionAPIData.setText(result);
                 //  imageUploadProgress.setVisibility(View.INVISIBLE);
+
             }
         }.execute();
+    }
+
+    private boolean checkAndRequestPermissions() {
+        int permissionCAMERA = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.CAMERA);
+        int storagePermission = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.READ_EXTERNAL_STORAGE);
+        int gpsPermission = ContextCompat.checkSelfPermission(this,
+                Manifest.permission.ACCESS_FINE_LOCATION);
+        List<String> listPermissionsNeeded = new ArrayList<>();
+        if (storagePermission != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
+        }
+        if (permissionCAMERA != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.CAMERA);
+        }
+        if (gpsPermission != PackageManager.PERMISSION_GRANTED) {
+            listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
+        }
+
+        if (!listPermissionsNeeded.isEmpty()) {
+            ActivityCompat.requestPermissions(this,
+
+
+                    listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), 1);
+            return false;
+        }
+        Toast.makeText(getApplicationContext(), "permission granted", Toast.LENGTH_SHORT).show();
+        return true;
     }
 
     public static class MyOnClickListener implements View.OnClickListener {
@@ -345,7 +337,7 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
 
         @Override
         public void onClick(View v) {
-            Toast.makeText(context, "onclick", Toast.LENGTH_SHORT).show();
+           // Toast.makeText(context, "onclick", Toast.LENGTH_SHORT).show();
 
             Coll_Expand(v);
         }
@@ -354,11 +346,17 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
             int selectedItemPosition = recyclerView.getChildPosition(v);
             RecyclerView.ViewHolder viewHolder
                     = recyclerView.findViewHolderForPosition(selectedItemPosition);
+            TextView temp
+                    = (TextView) viewHolder.itemView.findViewById(R.id.card_view_location_description);
+
+
             TextView textViewName
                     = (TextView) viewHolder.itemView.findViewById(R.id.card_view_show_more);
             if (textViewName.isShown()) {
+                temp.setText("Show More▼");
                 textViewName.setVisibility(View.GONE);
             } else {
+                temp.setText("Show Less▲");
                 textViewName.setVisibility(View.VISIBLE);
             }
         }

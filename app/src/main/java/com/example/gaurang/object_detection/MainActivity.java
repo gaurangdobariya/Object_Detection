@@ -1,4 +1,5 @@
 package com.example.gaurang.object_detection;
+
 import android.Manifest;
 
 import com.vansuita.pickimage.bean.PickResult;
@@ -82,7 +83,7 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
     Feature feature;
     private TextView visionAPIData;
     MaterialBetterSpinner spinnerVisionAPI;
-    private String[] visionAPI = new String[]{"LANDMARK_DETECTION", "LOGO_DETECTION", "SAFE_SEARCH_DETECTION", "IMAGE_PROPERTIES", "LABEL_DETECTION"};
+    public String[] visionAPI = new String[]{"LANDMARK_DETECTION", "LOGO_DETECTION", "SAFE_SEARCH_DETECTION", "IMAGE_PROPERTIES", "LABEL_DETECTION"};
 
     private String api = visionAPI[0];
     public static RecyclerView.Adapter adapter;
@@ -91,6 +92,7 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
     public static ArrayList<DataModel> data;
     DataModel d1, d2, d3, d4, d5;
     PickImageDialog dialog;
+    String message[];
     static View.OnClickListener myOnClickListener;
 
     @Override
@@ -99,6 +101,8 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
         setContentView(R.layout.activity_main);
         imageView = findViewById(R.id.imageView);
         takePicture = (Button) findViewById(R.id.takePicture);
+
+        message = new String[5];
 
         myOnClickListener = new MyOnClickListener(this);
         recyclerView = findViewById(R.id.my_recycler_view);
@@ -141,15 +145,8 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
         feature.setType(visionAPI[0]);
         feature.setMaxResults(10);
 
+        //  data.add(d3);
 
-        d1 = new DataModel("LABEL_DETECTION", "Show More▼", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
-        d2 = new DataModel("LANDMARK_DETECTION", "Show More▼", "descriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescriptiondescription ane ", R.drawable.gmd);
-
-        data.add(d1);
-        data.add(d2);
-      //  data.add(d3);
-        adapter = new CustomAdapter(data);
-        recyclerView.setAdapter(adapter);
 
 
     }
@@ -160,10 +157,32 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
             bitmap = r.getBitmap();
             imageView.setImageBitmap(bitmap);
             image = getImageEncodeImage(bitmap);
-
+            setData();
             //or     call here cloud visoin
 
         }
+    }
+
+    public void setData() {
+
+        d1 = new DataModel(visionAPI[0], "Show More▼", "msg for landmark", R.drawable.gmd);
+data.add(d1);
+        d2 = new DataModel(visionAPI[1], "Show More▼", "msg for LOgo", R.drawable.gmd);
+        data.add(d2);
+
+        d3 = new DataModel(visionAPI[2], "Show More▼", "msg for safe search", R.drawable.gmd);
+        data.add(d3);
+
+        d4 = new DataModel(visionAPI[3], "Show More▼", "msg for image properties", R.drawable.gmd);
+        data.add(d4);
+
+        d5 = new DataModel(visionAPI[4], "Show More▼", "msg for LABEL_DETECTION", R.drawable.gmd);
+        data.add(d5);
+
+
+        adapter = new CustomAdapter(data);
+            recyclerView.setAdapter(adapter);
+
     }
 
 
@@ -187,30 +206,40 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
 
         List<EntityAnnotation> entityAnnotations;
 
-        String message = "";
         switch (api) {
             case "LANDMARK_DETECTION":
+                message[0] = "default";
                 entityAnnotations = imageResponses.getLandmarkAnnotations();
-                message = formatAnnotation(entityAnnotations);
-                break;
+                message[0] = formatAnnotation(entityAnnotations);
+                return message[0];
+
             case "LOGO_DETECTION":
+                message[1] = "default";
+
                 entityAnnotations = imageResponses.getLogoAnnotations();
-                message = formatAnnotation(entityAnnotations);
-                break;
+                message[1] = formatAnnotation(entityAnnotations);
+                return message[1];
             case "SAFE_SEARCH_DETECTION":
+                message[2] = "default";
+
                 SafeSearchAnnotation annotation = imageResponses.getSafeSearchAnnotation();
-                message = getImageAnnotation(annotation);
-                break;
+                message[2] = getImageAnnotation(annotation);
+                return message[2];
+
             case "IMAGE_PROPERTIES":
+                message[3] = "default";
+
                 ImageProperties imageProperties = imageResponses.getImagePropertiesAnnotation();
-                message = getImageProperty(imageProperties);
-                break;
+                message[3] = getImageProperty(imageProperties);
+                return message[3];
             case "LABEL_DETECTION":
+                message[4] = "default";
+
                 entityAnnotations = imageResponses.getLabelAnnotations();
-                message = formatAnnotation(entityAnnotations);
-                break;
+                message[4] = formatAnnotation(entityAnnotations);
+                return message[4];
         }
-        return message;
+        return "default";
     }
 
     private String getImageAnnotation(SafeSearchAnnotation annotation) {
@@ -247,7 +276,7 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
 
 
     private void callCloudVision(final Bitmap bitmap, final Feature feature) {
-        visionAPIData.setText("Loading..");
+//        visionAPIData.setText("Loading..");
         final List<Feature> featureList = new ArrayList<>();
         featureList.add(feature);
 
@@ -286,47 +315,69 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
                 } catch (IOException e) {
                     Log.d(TAG, "failed to make API request because of other IOException " + e.getMessage());
                 }
-                return "Cloud Vision API request failed. Check logs for details.";
+                return "Cloud Vision API request failed. Check logs for details." + feature.getType() + "";
             }
 
             protected void onPostExecute(String result) {
-                visionAPIData.setText(result);
-                //  imageUploadProgress.setVisibility(View.INVISIBLE);
+                //   visionAPIData.setText(result);
+                // imageUploadProgress.setVisibility(View.INVISIBLE);
+                // message[0]=result;
+                appendData(result);
+                Toast.makeText(getBaseContext(), "ok done" + result + ":", Toast.LENGTH_SHORT).show();
 
             }
         }.execute();
     }
 
-    private boolean checkAndRequestPermissions() {
-        int permissionCAMERA = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.CAMERA);
-        int storagePermission = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.READ_EXTERNAL_STORAGE);
-        int gpsPermission = ContextCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION);
-        List<String> listPermissionsNeeded = new ArrayList<>();
-        if (storagePermission != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.READ_EXTERNAL_STORAGE);
-        }
-        if (permissionCAMERA != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.CAMERA);
-        }
-        if (gpsPermission != PackageManager.PERMISSION_GRANTED) {
-            listPermissionsNeeded.add(Manifest.permission.ACCESS_FINE_LOCATION);
-        }
-
-        if (!listPermissionsNeeded.isEmpty()) {
-            ActivityCompat.requestPermissions(this,
+    public void appendData(String result) {
+        if (result != "default" || result != "") {
+            switch (feature.getType()) {
+                case "LANDMARK_DETECTION":
+                    d1.setSm(result);
+                    RecyclerView.ViewHolder viewHolder
+                            = recyclerView.findViewHolderForPosition(0);
 
 
-                    listPermissionsNeeded.toArray(new String[listPermissionsNeeded.size()]), 1);
-            return false;
+                    TextView textViewName
+                            = (TextView) viewHolder.itemView.findViewById(R.id.card_view_show_more);
+                    textViewName.setText(result);
+
+                    break;
+
+                case "LOGO_DETECTION":
+                    d2 = new DataModel(visionAPI[1], "Show More▼", result, R.drawable.gmd);
+                    RecyclerView.ViewHolder viewHolder1 = recyclerView.findViewHolderForPosition(1);
+                    TextView textViewName1 = (TextView) viewHolder1.itemView.findViewById(R.id.card_view_show_more);
+                    textViewName1.setText(result);
+                    break;
+                case "SAFE_SEARCH_DETECTION":
+                    d3 = new DataModel(visionAPI[2], "Show More▼", result, R.drawable.gmd);
+                    RecyclerView.ViewHolder viewHolder2 = recyclerView.findViewHolderForPosition(2);
+                    TextView textViewName2 = (TextView) viewHolder2.itemView.findViewById(R.id.card_view_show_more);
+                    textViewName2.setText(result);
+                    break;
+                case "IMAGE_PROPERTIES":
+                    d4 = new DataModel(visionAPI[3], "Show More▼", result, R.drawable.gmd);
+                    RecyclerView.ViewHolder viewHolder3 = recyclerView.findViewHolderForPosition(3);
+                    TextView textViewName3 = (TextView) viewHolder3.itemView.findViewById(R.id.card_view_show_more);
+                    textViewName3.setText(result);
+                    break;
+
+                case "LABEL_DETECTION":
+                    d5 = new DataModel(visionAPI[4], "Show More▼", result, R.drawable.gmd);
+                    RecyclerView.ViewHolder viewHolder4 = recyclerView.findViewHolderForPosition(4);
+                    TextView textViewName4 = (TextView) viewHolder4.itemView.findViewById(R.id.card_view_show_more);
+                    textViewName4.setText(result);
+                    break;
+
+            }
+
+
         }
-        Toast.makeText(getApplicationContext(), "permission granted", Toast.LENGTH_SHORT).show();
-        return true;
     }
 
-    public static class MyOnClickListener implements View.OnClickListener {
+
+    public  class MyOnClickListener implements View.OnClickListener {
 
         private final Context context;
 
@@ -337,13 +388,13 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
 
         @Override
         public void onClick(View v) {
-           // Toast.makeText(context, "onclick", Toast.LENGTH_SHORT).show();
-
             Coll_Expand(v);
         }
 
         private void Coll_Expand(View v) {
             int selectedItemPosition = recyclerView.getChildPosition(v);
+
+
             RecyclerView.ViewHolder viewHolder
                     = recyclerView.findViewHolderForPosition(selectedItemPosition);
             TextView temp
@@ -357,6 +408,16 @@ public class MainActivity extends AppCompatActivity implements IPickResult {
                 textViewName.setVisibility(View.GONE);
             } else {
                 temp.setText("Show Less▲");
+                textViewName.setText("Loading...");
+                Toast.makeText(getApplicationContext(),String.valueOf(selectedItemPosition),Toast.LENGTH_SHORT).show();
+                feature.setType(visionAPI[selectedItemPosition]);
+                textViewName.setText("Loading.....");
+
+                feature.setMaxResults(10);
+                textViewName.setText("Stil Loading........");
+
+                if (bitmap != null)
+                    callCloudVision(bitmap, feature);
                 textViewName.setVisibility(View.VISIBLE);
             }
         }
